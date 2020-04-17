@@ -28,3 +28,8 @@ This project involves the design and implementation of a simple MQTT system whic
     - If multiple people in the house:
       - Temperature is set to the preference of the first person that arrived.
       - If the first person leaves, the next person's preference will be chosen.
+
+
+### MQTT Broker Description
+
+The MQTT Broker we have implemented communicates over TCP.
