@@ -2,6 +2,7 @@
 import socket, select, sys, queue
 import threading
 import logging
+import npyscreen
 
 # create the socket
 srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -19,12 +20,22 @@ send_q = {}
 
 quit = False
 
+logging.basicConfig(level=logging.INFO)
+
 def main():
-    # exit if requested (threading)
-    if quit:
-        return
     # TCP loop
     while True:
+        # exit if requested (threading)
+        if quit:
+            logging.info(quit)
+            # close all sockets when exiting
+            for sock in re:
+                sock.close()
+            for sock in wr:
+                sock.close()
+            logging.info("Sockets closed, exiting listen thread")
+            break
+
         # get lists with sockets that are redy to be worked on
         socks_read, socks_write, socks_err = select.select(
             re, wr, re
@@ -50,7 +61,7 @@ def main():
                 if msg:
                     # add data to appripriate queue
                     conn_q[sock].put(msg)
-                    logging.debug('Message received. Contents: ' + msg)
+                    logging.info('Message received. Contents: ' + msg.decode('utf-8'))
                     # if the socket isn't in the writable list, add it
                     if sock not in wr:
                         wr.append(sock)
@@ -101,11 +112,54 @@ def main():
             if sock in send_q:
                 del send_q[sock]
 
+    return
+
+class ServerApp(npyscreen.NPSAppManaged):
+    tcp_thread = threading.Thread(target=main, daemon=True)
+    def onStart(self):
+        self.value = None
+        self.tcp_thread.start()
+        logging.info("Thread Started")
+        self.addForm("MAIN", MainForm)
+
+
+class MainForm(npyscreen.Form):
+    OK_BUTTON_TEXT = "Exit"
+
+    def create(self):
+        self.keypress_timeout = 1
+        # self.keypress_timeout_default = 5
+        self.recv_log = self.add(npyscreen.Pager, name="Received Message Log", editable=False)
+        # btn_ = npyscreen.ButtonPress
+        # btn_send.whenPressed = self.send_msg
+        # self.add(btn_send, name="Send Message")
+
+    def update_log(self, msg=None):
+        self.max_size = 10
+        if(len(self.recv_log.values) >= self.max_size):
+            self.recv_log.values.pop()
+        self.recv_log.values = [msg] + self.recv_log.values
+        self.recv_log.display()
+        logging.info("List updated")
+    
+    def while_waiting(self):
+        for sock in conn_q:
+            try:
+                msg = conn_q[sock].get_nowait()
+            except queue.Empty:
+                continue
+
+            self.update_log(msg.decode('utf-8'))
+
+
+    # called when exit button is pressed
+    def afterEditing(self):
+        logging.info("After Editing")
+        global quit
+        #quit = True
+        self.parentApp.setNextForm(None)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("Shutting down")
-    sys.exit(0)
+    TA = ServerApp()
+    TA.run()
