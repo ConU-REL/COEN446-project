@@ -3,9 +3,10 @@ import socket, sys
 import npyscreen
 
 # create socket
-sock = socket.create_connection(('localhost', 8888))
+sock = socket.create_connection(("localhost", 8888))
 
-msg = b'test message'
+msg = b"test message"
+
 
 class ClientApp(npyscreen.NPSAppManaged):
     def onStart(self):
@@ -21,7 +22,6 @@ class MainForm(npyscreen.Form):
         btn_send.whenPressed = self.send_msg
         self.add(btn_send, name="Send Message")
 
-
     def afterEditing(self):
         self.parentApp.setNextForm(None)
 
@@ -29,4 +29,5 @@ class MainForm(npyscreen.Form):
 if __name__ == "__main__":
     TA = ClientApp()
     TA.run()
-    #main()
+    # main()
+

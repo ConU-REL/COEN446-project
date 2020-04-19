@@ -1,8 +1,9 @@
 from Message import *
 
-class MQTT():
+
+class MQTT:
     """Class containing methods for MQTT processes"""
-    
+
     def process_msg(self, msg):
         """Process received message"""
         header, content = msg.split(" ... ", 1)

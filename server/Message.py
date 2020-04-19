@@ -1,8 +1,9 @@
-class Frame():
+class Frame:
     """Frame superclass used to define all message frames"""
-    frame_types = {"base":0, "connect":1, "connack":2,\
-        "disconnect":3, "data":4}
+
+    frame_types = {"base": 0, "connect": 1, "connack": 2, "disconnect": 3, "data": 4}
     frame_type = 0
+
     def __init__(self, message):
         self.header = message[0]
         self.content = message[1]
@@ -10,7 +11,7 @@ class Frame():
 
 class ConnectFrame(Frame):
     """Connect Frame subclass, sent by client to broker when connection"""
-    
+
     def __init__(self, message):
         super(ConnectFrame, self).__init__(self, message)
         self.frame_type = 1
@@ -26,7 +27,7 @@ class ConnAckFrame(Frame):
         self.frame_type = 2
 
     def encode(self):
-        return self.message.encode('utf-8')
+        return self.message.encode("utf-8")
 
 
 class DiscFrame(Frame):
