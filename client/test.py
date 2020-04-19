@@ -5,7 +5,7 @@ import npyscreen
 # create socket
 sock = socket.create_connection(("localhost", 8888))
 
-msg = b"test message"
+msg = b"DATA ... test topic ... test data"
 
 
 class ClientApp(npyscreen.NPSAppManaged):

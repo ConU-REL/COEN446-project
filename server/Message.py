@@ -8,12 +8,17 @@ class Frame:
         self.header = message[0]
         self.content = message[1]
 
+    def __str__(self):
+        return (
+            f"{list(self.frame_types.keys())[self.frame_type].upper()} Frame with contents: {self.content}"
+        )
+
 
 class ConnectFrame(Frame):
     """Connect Frame subclass, sent by client to broker when connection"""
 
     def __init__(self, message):
-        super(ConnectFrame, self).__init__(self, message)
+        super(ConnectFrame, self).__init__(message)
         self.frame_type = 1
         self.conn_type = self.content.split(" ... ", 1)
 
@@ -34,7 +39,7 @@ class DiscFrame(Frame):
     """Disconnect Frame sent by client to broker"""
 
     def __init__(self, message):
-        super(DiscFrame, self).__init__(self, message)
+        super(DiscFrame, self).__init__(message)
         self.frame_type = 3
 
 
@@ -43,5 +48,6 @@ class DataFrame(Frame):
     between client and broker"""
 
     def __init__(self, message):
-        super(DataFrame, self).__init__(self, message)
+        super(DataFrame, self).__init__(message)
         self.frame_type = 4
+        self.topic, self.data = self.content.split(" ... ", 1)

@@ -2,6 +2,8 @@
 import socket, select, sys, queue
 import logging
 
+from Message import DataFrame
+
 # create the socket
 srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # set socket to non-blocking
@@ -55,7 +57,7 @@ def server_thread(conn_q, send_q):
                 if msg:
                     # add data to appripriate queue
                     conn_q.put((sock, msg))
-                    logging.info("Message received. Contents: " + msg.decode("utf-8"))
+                    # logging.info("Message received. Contents: " + msg.decode("utf-8"))
                     # if the socket isn't in the writable list, add it
                     if sock not in wr:
                         wr.append(sock)
@@ -73,14 +75,14 @@ def server_thread(conn_q, send_q):
         while True:
             try:
                 # try to pull a message from the send queue
-                (sock, msg) = send_q.get_nowait()
+                (sock, frame) = send_q.get_nowait()
             except queue.Empty:
                 # if queue is empty, break
                 break
             else:
                 # if there is a message and that socket is still writeable, send it
                 if sock in socks_write:
-                    sock.sendall(msg)
+                    sock.sendall(frame.content)
 
         # iterate over sockets with errors
         for sock in socks_err:

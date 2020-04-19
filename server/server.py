@@ -5,9 +5,14 @@ import threading
 import queue
 
 from tcp_server import server_thread
+from MQTT import MQTT
+
 
 conn_q = queue.Queue()
 send_q = queue.Queue()
+
+
+mqtt_inst = MQTT(send_q)
 
 
 class ServerApp(npyscreen.NPSAppManaged):
@@ -18,7 +23,6 @@ class ServerApp(npyscreen.NPSAppManaged):
     def onStart(self):
         self.value = None
         self.tcp_thread.start()
-        logging.info("Thread Started")
         self.addForm("MAIN", MainForm)
 
 
@@ -41,18 +45,18 @@ class MainForm(npyscreen.Form):
             self.recv_log.values.pop()
         self.recv_log.values = [msg] + self.recv_log.values
         self.recv_log.display()
-        logging.info("List updated")
 
     def while_waiting(self):
         try:
             (sock, msg) = conn_q.get_nowait()
+            frame = mqtt_inst.process_msg(msg.decode("utf-8"))
+            mqtt_inst.process_data(sock, frame)
             self.update_log(msg.decode("utf-8"))
         except queue.Empty:
             pass
 
     # called when exit button is pressed
     def afterEditing(self):
-        logging.info("After Editing")
         global quit
         quit = True
         self.parentApp.setNextForm(None)
