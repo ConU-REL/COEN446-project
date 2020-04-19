@@ -1,9 +1,11 @@
 class Frame():
     """Frame superclass used to define all message frames"""
-
-    frame_type = "base"
+    frame_types = {"base":0, "connect":1, "connack":2,\
+        "disconnect":3, "data":4}
+    frame_type = 0
     def __init__(self, message):
-        self.header, self.content = message.split(" ... ", 1)
+        self.header = message[0]
+        self.content = message[1]
 
 
 class ConnectFrame(Frame):
@@ -11,8 +13,7 @@ class ConnectFrame(Frame):
     
     def __init__(self, message):
         super(ConnectFrame, self).__init__(self, message)
-
-        self.frame_type = "connect"
+        self.frame_type = 1
         self.conn_type = self.content.split(" ... ", 1)
 
 
@@ -22,7 +23,7 @@ class ConnAckFrame(Frame):
 
     def __init__(self, conn_type):
         self.message = "ACK ... " + conn_type
-        self.frame_type = "connack"
+        self.frame_type = 2
 
     def encode(self):
         return self.message.encode('utf-8')
@@ -33,8 +34,7 @@ class DiscFrame(Frame):
 
     def __init__(self, message):
         super(DiscFrame, self).__init__(self, message)
-
-        self.frame_type = "disconnect"
+        self.frame_type = 3
 
 
 class DataFrame(Frame):
@@ -43,5 +43,4 @@ class DataFrame(Frame):
 
     def __init__(self, message):
         super(DataFrame, self).__init__(self, message)
-
-        self.frame_type = "data"
+        self.frame_type = 4
