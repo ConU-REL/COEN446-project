@@ -6,8 +6,8 @@ import queue
 
 from tcp_server import server_thread
 
-conn_q = {}
-send_q = {}
+conn_q = queue.Queue()
+send_q = queue.Queue()
 
 
 class ServerApp(npyscreen.NPSAppManaged):
@@ -46,13 +46,14 @@ class MainForm(npyscreen.Form):
 
 
     def while_waiting(self):
-        for sock in conn_q:
-            try:
-                msg = conn_q[sock].get_nowait()
-            except queue.Empty:
-                continue
-            
+        try:
+            (sock, msg) = conn_q.get_nowait()
             self.update_log(msg.decode('utf-8'))
+        except queue.Empty:
+            pass
+
+        
+
 
 
     # called when exit button is pressed

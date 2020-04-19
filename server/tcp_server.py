@@ -47,8 +47,7 @@ def server_thread(conn_q, send_q):
                 new_conn.setblocking(0)
                 # append conn to socket list
                 re.append(new_conn)
-                # create a matching queue in the queue dict
-                conn_q[new_conn] = queue.Queue()
+                
             # for non-server sockets in the list
             else:
                 # receive 1024 bits from socket
@@ -56,7 +55,7 @@ def server_thread(conn_q, send_q):
                 # check if data received
                 if msg:
                     # add data to appripriate queue
-                    conn_q[sock].put(msg)
+                    conn_q.put((sock, msg))
                     logging.info('Message received. Contents: ' + msg.decode('utf-8'))
                     # if the socket isn't in the writable list, add it
                     if sock not in wr:
@@ -70,29 +69,20 @@ def server_thread(conn_q, send_q):
                     re.remove(sock)
                     # close the socket
                     sock.close()
-                    # delete the queue associated with that socket
-                    del conn_q[sock]
-                    # delete the send queue associated with that socket
-                    if sock in send_q:
-                        del send_q[sock]
 
-        # iterate over sockets that are ready to be written to
-        for sock in socks_write:
-            # check if there is a send queue for the socket
-            if sock in send_q:
-                try:
-                    # try to pull a message from the send queue
-                    msg = send_q[sock].get_nowait()
-                except queue.Empty:
-                    # if the send queue is empty, delete the queue
-                    del send_q[sock]
-                    # delete the send queue associated with that socket
-                    if sock in send_q:
-                        del send_q[sock]
-                else:
-                    # send any messages that are ready for that connection
-                    srv.sendall(msg.encode('utf-8'))
-        
+        # try to send any/all messages in the queue
+        while(True):
+            try:
+                # try to pull a message from the send queue
+                (sock, msg) = send_q.get_nowait()
+            except queue.Empty:
+                # if queue is empty, break
+                break
+            else:
+                # if there is a message and that socket is still writeable, send it
+                if sock in socks_write:
+                    sock.sendall(msg)
+
         #iterate over sockets with errors
         for sock in socks_err:
             # remove socket from writeable list if it is there
@@ -102,10 +92,5 @@ def server_thread(conn_q, send_q):
             re.remove(sock)
             # close the socket
             sock.close()
-            # delete the queue associated with that socket
-            del conn_q[sock]
-            # delete the send queue associated with that socket
-            if sock in send_q:
-                del send_q[sock]
 
     return
