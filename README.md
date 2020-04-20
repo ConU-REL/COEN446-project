@@ -30,6 +30,32 @@ This project involves the design and implementation of a simple MQTT system whic
       - If the first person leaves, the next person's preference will be chosen.
 
 
-### MQTT Broker Description
+### MQTT Implementation Description
 
-The MQTT Broker we have implemented communicates over TCP.
+The MQTT Broker and Client we designed operate over UDP. Our implementation only uses QoS 0, and has no "retain" functionality. However, these flags have been included for the sake of correctness.
+
+The following messages have been implemented:
+
+1. Connack
+   
+   Contains the header "ACK" with no content
+2. Publish
+   
+   Contains the Topic to publish to, the QoS level, the Retain flag, and the actual message content
+3. Subscribe
+   
+   Contains the header "SUB" followed by a list of topics to subscribe to
+4. Suback
+   
+   Contains the header "ACK" with the content "SUB" followed by a list of return values for all of the requesed subscription topics
+5. Unsubscribe
+   
+   Contains the header "UNSUB" followed by a list of topics to unsubscribe from
+6. Unsuback
+   
+   Contains the header "UNSUBACK" and no further content
+7. Disconnect
+   
+   Contains the header "DISC" and no further content
+
+These messages should be more than sufficient for basic MQTT communication.
