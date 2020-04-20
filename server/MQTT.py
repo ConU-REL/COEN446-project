@@ -1,5 +1,6 @@
 from Message import *
 import queue
+import logging
 
 
 class MQTT:
@@ -7,7 +8,9 @@ class MQTT:
 
     topics = []
     subscribers = {}
+    sub_list = []
     publishers = {}
+    pub_list = []
 
     send_q = None
 
@@ -21,11 +24,14 @@ class MQTT:
         frame_type = Frame.frame_types[header.lower()]
 
         if frame_type == 1:
-            return ConnectFrame(msg)
+            frame = ConnectFrame(msg)
+            return 0 if not frame else frame
         elif frame_type == 3:
-            return DiscFrame(msg)
+            frame = DiscFrame(msg)
+            return 0 if not frame else frame
         elif frame_type == 4:
-            return DataFrame(msg)
+            frame = DataFrame(msg)
+            return 0 if not frame else frame
 
     def process_data(self, sock, frame):
         """Process a data frame"""
@@ -37,6 +43,17 @@ class MQTT:
             self.add_pub(sock, frame.topic)
 
         self.broadcast_data(frame)
+
+    def process_conn(self, sock, frame):
+        """Process a connect frame"""
+
+        # check if topic exists
+        if not frame.topic in self.topics:
+            self.add_topic(frame.topic)
+            
+        # if subscriber
+        if not frame.conn_type:
+            self.add_sub(sock, frame.topic)
 
     def broadcast_data(self, frame):
         """Broadcast data to subscribers"""
@@ -53,7 +70,15 @@ class MQTT:
 
     def add_sub(self, sock, topic):
         """Add subscriber to given topic"""
-        pass
+
+        if sock in self.subscribers[topic]:
+            logging.info("already subscribed")
+            return
+
+        self.subscribers[topic].append(sock)
+        self.sub_list.append(sock.getpeername())
+        logging.info("subscribing")
+
 
     def rem_sub(self, sock, topic):
         """Remove subscriber from given topic"""
@@ -61,7 +86,14 @@ class MQTT:
 
     def add_pub(self, sock, topic):
         """Add publisher to given topic"""
+
+        if sock in self.publishers[topic]:
+            logging.info("already published")
+            return
+
         self.publishers[topic].append(sock)
+        self.pub_list.append(sock.getpeername())
+
 
     def rem_pub(self, sock, topic):
         """Remove publisher from given topic"""

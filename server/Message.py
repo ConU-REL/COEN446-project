@@ -16,11 +16,12 @@ class Frame:
 
 class ConnectFrame(Frame):
     """Connect Frame subclass, sent by client to broker when connection"""
-
+    conn_types = {"subscribe":0, "publish":1}
     def __init__(self, message):
         super(ConnectFrame, self).__init__(message)
         self.frame_type = 1
-        self.conn_type = self.content.split(" ... ", 1)
+        self.conn_type, self.topic = self.content.split(" ... ", 1)
+        self.conn_type = self.conn_types[self.conn_type.lower()]
 
 
 class ConnAckFrame(Frame):

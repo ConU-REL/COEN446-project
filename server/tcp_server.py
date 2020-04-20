@@ -76,13 +76,14 @@ def server_thread(conn_q, send_q):
             try:
                 # try to pull a message from the send queue
                 (sock, frame) = send_q.get_nowait()
+                # if there is a message and that socket is still writeable, send it
+                if sock in socks_write:
+                    sock.sendall(frame.content.encode("utf-8"))
+                logging.info("Message being sent. Contents: " + frame.content)
             except queue.Empty:
                 # if queue is empty, break
                 break
-            else:
-                # if there is a message and that socket is still writeable, send it
-                if sock in socks_write:
-                    sock.sendall(frame.content)
+
 
         # iterate over sockets with errors
         for sock in socks_err:
