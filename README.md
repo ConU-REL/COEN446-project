@@ -41,7 +41,7 @@ The following messages have been implemented:
    Contains the header "ACK" with no content
 2. Publish
    
-   Contains the Topic to publish to, the QoS level, the Retain flag, and the actual message content
+   Contains header "PUB", then the Topic to publish to, the QoS level, the Retain flag, and the actual message content
 3. Subscribe
    
    Contains the header "SUB" followed by a list of topics to subscribe to
@@ -53,7 +53,7 @@ The following messages have been implemented:
    Contains the header "UNSUB" followed by a list of topics to unsubscribe from
 6. Unsuback
    
-   Contains the header "UNSUBACK" and no further content
+   Contains the header "ACK" with the content "UNSUB"
 7. Disconnect
    
    Contains the header "DISC" and no further content

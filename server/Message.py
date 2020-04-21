@@ -1,54 +1,119 @@
+import json
+import logging
+
+
 class Frame:
     """Frame superclass used to define all message frames"""
 
-    frame_types = {"base": 0, "connect": 1, "connack": 2, "disconnect": 3, "data": 4}
-    frame_type = 0
+    header = "base"
 
     def __init__(self, message):
-        self.header = message[0]
-        self.content = message[1]
+        try:
+            self.message = dict(json.loads(message))
+            # logging.info(f"Message dumped: {self.message}")
+            self.header = self.message["header"]
+        except json.JSONDecodeError:
+            # logging.info(f"JSON error")
+            self.header = "error"
 
     def __str__(self):
-        return (
-            f"{list(self.frame_types.keys())[self.frame_type].upper()} Frame with contents: {self.content}"
-        )
+        return f"Base (or malformed) Frame"
 
 
-class ConnectFrame(Frame):
-    """Connect Frame subclass, sent by client to broker when connection"""
-    conn_types = {"subscribe":0, "publish":1}
-    def __init__(self, message):
-        super(ConnectFrame, self).__init__(message)
-        self.frame_type = 1
-        self.conn_type, self.topic = self.content.split(" ... ", 1)
-        self.conn_type = self.conn_types[self.conn_type.lower()]
+class AckFrame(Frame):
+    """All the different types of acknowledge frames sent by the broker"""
 
+    def __init__(self, type, topics=None):
+        if type == "connack":
+            self.ack_type = "connack"
+            self.header = "ACK"
+            self.message = {"header": self.header}
+        elif type == "suback":
+            self.ack_type = "suback"
+            self.header = "ACK"
+            self.content = "SUB"
+            if topics:
+                self.topics_return = topics
+                self.message = {
+                    "header": self.header,
+                    "content": self.content,
+                    "return": self.topics_return,
+                }
+            else:
+                self.header = "error"
+        elif type == "unsuback":
+            self.ack_type = "unsuback"
+            self.header = "ACK"
+            self.content = "UNSUB"
+            self.message = {"header": self.header, "content": self.content}
 
-class ConnAckFrame(Frame):
-    """Connection Acknowledge Frame, sent to client by broker 
-    upon successful connection"""
-
-    def __init__(self, conn_type):
-        self.message = "ACK ... " + conn_type
-        self.frame_type = 2
+    def __str__(self):
+        return f"ACK Frame of type {self.ack_type}"
 
     def encode(self):
-        return self.message.encode("utf-8")
+        return json.dumps(self.message)
 
 
-class DiscFrame(Frame):
+class PublishFrame(Frame):
+    """Contains data that has been sent to the broker or that is to be sent to subscribers"""
+
+    def __init__(self, message):
+        super(PublishFrame, self).__init__(message)
+        try:
+            self.topic = self.message["topic"]
+            self.qos = self.message["qos"]
+            self.retain = self.message["retain"]
+            self.content = self.message["content"]
+        except json.JSONDecodeError:
+            self.header = "error"
+
+    def __str__(self):
+        return f"Publish Frame. Topic: {self.topic}, Payload: {self.content}"
+
+    def encode(self):
+        """Restructure the message for rebroadcasting"""
+        self.message = {
+            "header": self.header,
+            "topic": self.topic,
+            "content": self.content,
+        }
+
+        return json.dumps(self.message)
+
+
+class SubscribeFrame(Frame):
+    """Subscribe frame used sent to broker by client when it wants to subscribe to topic(s)"""
+
+    def __init__(self, message):
+        super(SubscribeFrame, self).__init__(message)
+        try:
+            self.topics = list(self.message["topics"])
+        except json.JSONDecodeError:
+            self.header = "error"
+
+    def __str__(self):
+        return f"Subscribe Frame. Topics requested: {self.topics}"
+
+
+class UnsubscribeFrame(Frame):
+    """Unsubscribe Frame sent to broker by client when it wants to unsubscribe"""
+
+    def __init__(self, message):
+        super(UnsubscribeFrame, self).__init__(message)
+        try:
+            self.topics = self.message["topic"]
+        except json.JSONDecodeError:
+            self.header = "error"
+
+    def __str__(self):
+        return f"Unsubscribe Frame. Topics requested: {self.topics}"
+
+
+class DisconnectFrame(Frame):
     """Disconnect Frame sent by client to broker"""
 
     def __init__(self, message):
-        super(DiscFrame, self).__init__(message)
-        self.frame_type = 3
+        super(DisconnectFrame, self).__init__(message)
 
-
-class DataFrame(Frame):
-    """Data Frame used to transmit data unilaterally 
-    between client and broker"""
-
-    def __init__(self, message):
-        super(DataFrame, self).__init__(message)
-        self.frame_type = 4
-        self.topic, self.data = self.content.split(" ... ", 1)
+    def __str__(self):
+        return f"Disconnect Frame"

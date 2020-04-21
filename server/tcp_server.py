@@ -2,7 +2,7 @@
 import socket, select, sys, queue
 import logging
 
-from Message import DataFrame
+from Message import PublishFrame, AckFrame
 
 # create the socket
 srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -48,6 +48,7 @@ def server_thread(conn_q, send_q):
                 new_conn.setblocking(0)
                 # append conn to socket list
                 re.append(new_conn)
+                send_q.put((sock, AckFrame("connack")))
 
             # for non-server sockets in the list
             else:
@@ -79,7 +80,7 @@ def server_thread(conn_q, send_q):
                 # if there is a message and that socket is still writeable, send it
                 if sock in socks_write:
                     sock.sendall(frame.content.encode("utf-8"))
-                logging.info("Message being sent. Contents: " + frame.content)
+                logging.info("Message being sent. Type: " + frame.header)
             except queue.Empty:
                 # if queue is empty, break
                 break

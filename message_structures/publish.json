@@ -1,0 +1,7 @@
+{
+    "header":"PUB",
+    "topic":"topicname",
+    "qos":0,
+    "retain":0,
+    "content":"message content"
+}

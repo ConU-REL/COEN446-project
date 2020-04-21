@@ -1,6 +1,7 @@
 # Imports
 import socket, sys
 import npyscreen
+import json
 
 
 class ClientApp(npyscreen.NPSAppManaged):
@@ -14,7 +15,14 @@ class MainForm(npyscreen.Form):
     sock = None
 
     def send_msg(self):
-        msg = f"DATA ... {self.topic.value} ... test data {self.counter}"
+        msg = {
+            "header": "PUB",
+            "topic": "test topic",
+            "qos": 0,
+            "retain": 0,
+            "content": "test content",
+        }
+        msg = json.dumps(msg)
         try:
             self.sock.sendall(msg.encode("utf-8"))
             self.counter += 1
@@ -27,7 +35,12 @@ class MainForm(npyscreen.Form):
             pass
 
     def subscribe(self):
-        msg = f"CONNECT ... SUBSCRIBE ... {self.topic.value}"
+        msg = {
+            "header":"SUB",
+            "topics":["test topic"]
+        }
+        msg = json.dumps(msg)
+
         try:
             self.sock.sendall(msg.encode("utf-8"))
             self.counter += 1
@@ -65,25 +78,72 @@ class MainForm(npyscreen.Form):
 
     def create(self):
         self.conn = self.add(
-            npyscreen.TitleText, name="Connection", editable=False
+            npyscreen.TitleText,
+            name="Connection",
+            editable=False,
+            relx = 2,
+            rely = 1
         )
         self.conn.value = "Disconnected"
 
         self.topic = self.add(npyscreen.TitleText, name="Topic")
         self.nextrely += 1
 
-        self.btn_conn = self.add(npyscreen.ButtonPress, name="Connect")
+        self.recv_log = self.add(
+            npyscreen.BoxTitle,
+            name="Received Message Log",
+            editable=False,
+            relx = 2,
+            rely = 3,
+            max_height = 10,
+        )
+
+        self.topics_log = self.add(
+            npyscreen.BoxTitle,
+            name="Topics",
+            editable=False,
+            relx = 2,
+            rely = 13,
+            max_height = 8,
+            max_width = int(self.recv_log.width/3)
+        )
+
+        self.sub_log = self.add(
+            npyscreen.BoxTitle,
+            name="Subscriptions",
+            editable=False,
+            relx = self.topics_log.max_width+2,
+            rely = 13,
+            max_height = 8,
+            max_width = int(self.recv_log.width/3)
+        )
+        
+        self.btn_conn = self.add(
+            npyscreen.ButtonPress,
+            name="Connect",
+            relx = self.sub_log.relx + self.sub_log.max_width,
+            rely = 13
+        )
+        
+        btn_send = self.add(
+            npyscreen.ButtonPress,
+            name="Send Message",
+            relx = self.sub_log.relx + self.sub_log.max_width,
+            rely = 14
+        )
+
+        btn_sub = self.add(
+            npyscreen.ButtonPress,
+            name="Subscribe",
+            relx = self.sub_log.relx + self.sub_log.max_width,
+            rely = 15
+        )
+
+
         self.btn_conn.whenPressed = self.connect
-        self.nextrely -= 1
-        self.nextrelx += 15
-
-        btn_send = self.add(npyscreen.ButtonPress, name="Send Message")
         btn_send.whenPressed = self.send_msg
-
-        btn_sub = self.add(npyscreen.ButtonPress, name="Subscribe")
         btn_sub.whenPressed = self.subscribe
 
-        
 
     def afterEditing(self):
         self.parentApp.setNextForm(None)

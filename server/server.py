@@ -3,6 +3,7 @@ import npyscreen
 import logging
 import threading
 import queue
+from Message import Frame
 
 from tcp_server import server_thread
 from MQTT import MQTT
@@ -89,7 +90,7 @@ class MainForm(npyscreen.Form):
         # if we're at max capacity, delete the oldest message from the log
         if len(self.recv_log.values) >= self.max_size:
             self.recv_log.values.pop()
-        self.recv_log.values = [msg] + self.recv_log.values
+        self.recv_log.values = [msg.__str__()] + self.recv_log.values
         # refresh the display
 
         self.topics_log.values = mqtt_inst.topics
@@ -103,16 +104,22 @@ class MainForm(npyscreen.Form):
             (sock, msg) = conn_q.get_nowait()
             frame = mqtt_inst.process_msg(msg.decode("utf-8"))
 
-            if frame.frame_type == 0:
+            if not frame:
+                self.update_log(Frame("bad"))
                 return
-            elif frame.frame_type == 1:
-                mqtt_inst.process_conn(sock, frame)
-            elif frame.frame_type == 3:
-                pass
-            elif frame.frame_type == 4:
-                mqtt_inst.process_data(sock, frame)
 
-            self.update_log(msg.decode("utf-8"))
+            tp = frame.header.lower()
+
+            if tp == "pub":
+                mqtt_inst.process_data(sock, frame)
+            elif tp == "sub":
+                mqtt_inst.process_sub(sock, frame)
+            elif tp == "unsub":
+                mqtt_inst.process_unsub(sock, frame)
+            elif tp == "disc":
+                mqtt_inst.process_disc(sock, frame)
+
+            self.update_log(frame)
         except queue.Empty:
             pass
 
