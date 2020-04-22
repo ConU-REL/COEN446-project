@@ -71,12 +71,7 @@ class MainForm(npyscreen.Form):
         self.display()
 
     def while_waiting(self):
-        try:
-            msg = recv_q.get_nowait()
-            # TODO: process received frame here
-            # self.update_log(frame)
-        except queue.Empty:
-            pass
+        pass
 
     def update_log(self, msg=None):
         # max number of recent messages we want to see

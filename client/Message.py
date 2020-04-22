@@ -47,7 +47,7 @@ class AckFrame(Frame):
                 self.content = self.message["content"]
             except json.JSONDecodeError:
                 pass
-            
+
     def compose(self, type, topics=None):
         if type == "connack":
             self.ack_type = "connack"
@@ -143,8 +143,16 @@ class UnsubscribeFrame(Frame):
 class DisconnectFrame(Frame):
     """Disconnect Frame sent by client to broker"""
 
-    def __init__(self, message):
-        super(DisconnectFrame, self).__init__(message)
+    def __init__(self, message=None):
+        if not message is None:
+            super(DisconnectFrame, self).__init__(message)
+        else:
+            self.header = "DISCONNECT"
+            self.content = ""
+            self.message = {"header":self.header, "content":self.content}
 
     def __str__(self):
-        return f"Disconnect Frame"
+        return f"DISCONNECT Frame"
+
+    def encode(self):
+        return json.dumps(self.message)

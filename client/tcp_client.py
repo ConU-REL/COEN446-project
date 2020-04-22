@@ -11,9 +11,6 @@ def client_thread(stop, sock, recv_q, send_q):
     # TCP loop
     while True:
         if stop():
-            if(not cl._closed):
-                cl.close()
-            # logging.info("Thread closing")
             return 0
 
         # get lists with sockets that are redy to be worked on
@@ -32,7 +29,7 @@ def client_thread(stop, sock, recv_q, send_q):
                 # if we read 0 bytes, terminate the connection
                 else:
                     # close the socket
-                    #sock.close()
+                    sock.close()
                     return 1
             except ConnectionResetError:
                 pass
@@ -46,9 +43,9 @@ def client_thread(stop, sock, recv_q, send_q):
                 # try to pull a message from the send queue
                 message = send_q.get_nowait()
                 # if there is a message and that socket is still writeable, send it
-                
-                sock.sendall(message.encode("utf-8"))
-                logging.info("Message being sent.")
+                message = message.encode("utf-8")
+                sock.sendall(message)
+                logging.info(f"Message being sent: {message}.")
 
             except queue.Empty:
                 # if queue is empty, break
@@ -59,6 +56,4 @@ def client_thread(stop, sock, recv_q, send_q):
             # close the socket
             socks_err[0].close()
             return 1
-    if(not cl._closed):
-        cl.close()
     return 0

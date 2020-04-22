@@ -45,9 +45,12 @@ class MQTT_Client:
                 (self.srv_ip, self.srv_port), self.srv_timeout
             )
             self.sock.setblocking(0)
-            self.sock.sendall(Message.ConnectFrame().encode().encode("utf-8"))
+            self.send_q.put(Message.ConnectFrame().encode())
+            # self.sock.sendall()
+
             self.connected = True
         except ConnectionRefusedError:
+            logging.info("connection error")
             return 1
 
         self.tcp_thread = threading.Thread(
@@ -60,22 +63,25 @@ class MQTT_Client:
             target=self.process_inc,
             daemon=True,
         )
-        
-        self.tcp_thread.start()
-        self.process_thread.start()
+        if not self.tcp_thread.isAlive():
+            self.stop_thread=False
+            self.tcp_thread.start()
+        if not self.process_thread.isAlive():
+            self.process_thread.start()
         return 0
 
     def disconnect(self,):
         if self.connack_rec:
+            self.send_q.put(Message.DisconnectFrame().encode())
             # TODO: send disconnect frame here
             pass
 
         if self.connected:
             self.stop_thread = True
             self.tcp_thread.join()
-            while not self.sock._closed:
-                pass
-                return False
+            self.sock.close()
+            self.connack_rec = False
+            self.connected = False
         else:
             return False
 
@@ -84,7 +90,6 @@ class MQTT_Client:
         #     return 1
         if topics == None:
             return 1
-        
         msg = {"header":"SUB", "topics":topics}
         frame = Message.SubscribeFrame(json.dumps(msg))
 

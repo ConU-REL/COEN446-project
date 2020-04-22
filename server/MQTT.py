@@ -35,8 +35,8 @@ class MQTT:
             frame = SubscribeFrame(msg)
         elif hd == "unsub":
             frame = UnsubscribeFrame(msg)
-        elif hd == "disc":
-            frame = DisconnectFrame(Frame)
+        elif hd == "disconnect":
+            frame = DisconnectFrame(msg)
         else:
             return 0
 
@@ -80,14 +80,14 @@ class MQTT:
 
         self.send_q.put((sock, AckFrame().compose("unsuback").encode()))
 
-    def process_disc(self, sock, frame):
+    def process_disc(self, sock):
         """Process a Disconnect frame"""
         for topic in self.topics:
-            if sock in self.publishers[topic]:
-                self.publishers[topic].remove(sock)
-            if sock in self.subscribers[topic]:
-                self.subscribers[topic].remove(sock)
+            self.rem_pub(sock, topic)
+            self.rem_sub(sock, topic)
             self.rem_topic(topic)
+
+        self.update_pub_sub()
 
 
     def broadcast_data(self, frame):
@@ -128,10 +128,11 @@ class MQTT:
         # logging.info("Subscribing")
 
 
-    def rem_sub(self, sock, topic):
+    def rem_sub(self, sock, topic=None):
         """Remove subscriber from given topic"""
-        if sock in self.subscribers[topic]:
-            self.subscribers[topic].remove(sock)
+        if not topic is None:
+            if sock in self.subscribers[topic]:
+                self.subscribers[topic].remove(sock)
 
 
     def add_pub(self, sock, topic):
@@ -144,7 +145,23 @@ class MQTT:
         self.pub_list.append(sock.getpeername())
 
 
-    def rem_pub(self, sock, topic):
+    def rem_pub(self, sock, topic=None):
         """Remove publisher from given topic"""
-        if sock in self.publishers[topic]:
-            self.publishers[topic].remove(topic)
+        if not sock is None:
+            if sock in self.publishers[topic]:
+                self.publishers[topic].remove(sock)
+
+    def update_pub_sub(self):
+        pubs = []
+        subs = []
+        for topic in self.topics:
+            pubs.append([x.getpeername() for x in self.publishers[topic]])
+            subs.append([x.getpeername() for x in self.subscribers[topic]])
+
+        for sock in self.pub_list:
+            if not sock in pubs:
+                self.pub_list.remove(sock)
+        
+        for sock in self.sub_list:
+            if not sock in subs:
+                self.sub_list.remove(sock)

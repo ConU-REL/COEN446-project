@@ -96,6 +96,8 @@ class MainForm(npyscreen.Form):
         self.sub_log.values = mqtt_inst.sub_list
         self.pub_log.values = mqtt_inst.pub_list
 
+        logging.info(mqtt_inst.sub_list)
+
         self.display()
 
     def while_waiting(self):
@@ -108,7 +110,7 @@ class MainForm(npyscreen.Form):
                 return
 
             tp = frame.header.lower()
-
+            logging.info(tp)
             if tp == "connect":
                 mqtt_inst.process_connect(sock)
             elif tp == "pub":
@@ -117,8 +119,8 @@ class MainForm(npyscreen.Form):
                 mqtt_inst.process_sub(sock, frame)
             elif tp == "unsub":
                 mqtt_inst.process_unsub(sock, frame)
-            elif tp == "disc":
-                mqtt_inst.process_disc(sock, frame)
+            elif tp == "disconnect":
+                mqtt_inst.process_disc(sock)
 
             self.update_log(frame)
         except queue.Empty:

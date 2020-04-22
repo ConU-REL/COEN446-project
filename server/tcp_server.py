@@ -20,27 +20,6 @@ quit = False
 
 logging.basicConfig(level=logging.INFO)
 
-def c_receive(sock):
-    parts = []
-    bytes_rec = 0
-    while bytes_rec < 1024:
-        part = sock.recv(min(1024 - bytes_rec, 1024))
-        if part == b"":
-            return -1
-        parts.append(part)
-        bytes_rec += len(part)
-    return b"".join(parts)
-
-def c_send(msg, sock):
-    total = 0
-    while total < msg:
-        sent = sock.send(msg[total:])
-        if sent == 0:
-            return -1
-        total += sent
-    return 0
-
-
 def server_thread(conn_q, send_q):
     # TCP loop
     while True:
@@ -73,7 +52,18 @@ def server_thread(conn_q, send_q):
             # for non-server sockets in the list
             else:
                 # receive 1024 bits from socket
-                msg = sock.recv(2048)
+                try:
+                    msg = sock.recv(2048)
+                except ConnectionResetError:
+                    msg = 0
+                    # logging.info("Connection closed, removing socket")
+                    # # remove socket from writeable list if it's there
+                    # if sock in wr:
+                    #     wr.remove(sock)
+                    # # remove socket from readable list
+                    # re.remove(sock)
+                    # # close the socket
+                    # sock.close()
                 # check if data received
                 if msg:
                     # add data to appripriate queue
