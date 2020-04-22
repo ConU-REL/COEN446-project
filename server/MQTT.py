@@ -27,11 +27,13 @@ class MQTT:
 
         if hd == "error" or hd == "base":
             return 0
-        if hd == "pub":
+        if hd == "connect":
+            frame = ConnectFrame(msg)
+        elif hd == "pub":
             frame = PublishFrame(msg)
         elif hd == "sub":
             frame = SubscribeFrame(msg)
-        elif hd == "subsub":
+        elif hd == "unsub":
             frame = UnsubscribeFrame(msg)
         elif hd == "disc":
             frame = DisconnectFrame(Frame)
@@ -40,6 +42,10 @@ class MQTT:
 
         return 0 if frame.header == "error" else frame
 
+    def process_connect(self, sock):
+        """Respond to a connection"""
+
+        self.send_q.put((sock, AckFrame().compose("connack").encode()))
 
     def process_data(self, sock, frame):
         """Process a publish frame"""
@@ -64,7 +70,7 @@ class MQTT:
             else:
                 resp.append(0)
         
-        self.send_q.put((sock, AckFrame("suback", resp)))
+        self.send_q.put((sock, AckFrame().compose("suback", resp).encode()))
 
 
     def process_unsub(self, sock, frame):
@@ -72,7 +78,7 @@ class MQTT:
         for topic in frame.topics:
             self.rem_sub(sock, topic)
 
-        self.send_q.put((sock, AckFrame("unsuback")))
+        self.send_q.put((sock, AckFrame().compose("unsuback").encode()))
 
     def process_disc(self, sock, frame):
         """Process a Disconnect frame"""
@@ -87,7 +93,7 @@ class MQTT:
     def broadcast_data(self, frame):
         """Broadcast data to subscribers"""
         for sock in self.subscribers[frame.topic]:
-            self.send_q.put((sock, frame))
+            self.send_q.put((sock, frame.encode()))
 
 
     def add_topic(self, topic):

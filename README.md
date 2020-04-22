@@ -36,25 +36,28 @@ The MQTT Broker and Client we designed operate over UDP. Our implementation only
 
 The following messages have been implemented:
 
-1. Connack
+1. Conect
+   
+   Contains the header "CONNECT" with no content
+2. Connack
    
    Contains the header "ACK" with no content
-2. Publish
+3. Publish
    
    Contains header "PUB", then the Topic to publish to, the QoS level, the Retain flag, and the actual message content
-3. Subscribe
+4. Subscribe
    
    Contains the header "SUB" followed by a list of topics to subscribe to
-4. Suback
+5. Suback
    
    Contains the header "ACK" with the content "SUB" followed by a list of return values for all of the requesed subscription topics
-5. Unsubscribe
+6. Unsubscribe
    
    Contains the header "UNSUB" followed by a list of topics to unsubscribe from
-6. Unsuback
+7. Unsuback
    
    Contains the header "ACK" with the content "UNSUB"
-7. Disconnect
+8. Disconnect
    
    Contains the header "DISC" and no further content
 

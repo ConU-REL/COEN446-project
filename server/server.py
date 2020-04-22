@@ -22,7 +22,6 @@ class ServerApp(npyscreen.NPSAppManaged):
     )
 
     def onStart(self):
-        self.value = None
         self.tcp_thread.start()
         self.addForm("MAIN", MainForm)
 
@@ -110,7 +109,9 @@ class MainForm(npyscreen.Form):
 
             tp = frame.header.lower()
 
-            if tp == "pub":
+            if tp == "connect":
+                mqtt_inst.process_connect(sock)
+            elif tp == "pub":
                 mqtt_inst.process_data(sock, frame)
             elif tp == "sub":
                 mqtt_inst.process_sub(sock, frame)

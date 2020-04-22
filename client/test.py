@@ -1,8 +1,17 @@
 # Imports
 import socket, sys
+import queue, threading
 import npyscreen
 import json
+import logging
+from tcp_client import client_thread
+from Message import *
+from MQTT_Client import MQTT_Client
 
+recv_q = queue.Queue()
+send_q = queue.Queue()
+
+mqtt = MQTT_Client()
 
 class ClientApp(npyscreen.NPSAppManaged):
     def onStart(self):
@@ -12,9 +21,9 @@ class ClientApp(npyscreen.NPSAppManaged):
 class MainForm(npyscreen.Form):
     OK_BUTTON_TEXT = "Exit"
     counter = 0
-    sock = None
 
     def send_msg(self):
+        return
         msg = {
             "header": "PUB",
             "topic": "test topic",
@@ -22,9 +31,8 @@ class MainForm(npyscreen.Form):
             "retain": 0,
             "content": "test content",
         }
-        msg = json.dumps(msg)
+        msg = PublishFrame(json.dumps(msg))
         try:
-            self.sock.sendall(msg.encode("utf-8"))
             self.counter += 1
         except ConnectionResetError:
             self.conn.value = "Disconnected"
@@ -35,54 +43,58 @@ class MainForm(npyscreen.Form):
             pass
 
     def subscribe(self):
-        msg = {
-            "header":"SUB",
-            "topics":["test topic"]
-        }
-        msg = json.dumps(msg)
-
-        try:
-            self.sock.sendall(msg.encode("utf-8"))
-            self.counter += 1
-        except ConnectionResetError:
-            self.conn.value = "Disconnected"
-            self.btn_conn.name = "Connect"
-            self.btn_conn.whenPressed = self.connect
-            self.display()
-        except AttributeError:
-            pass
+        mqtt.subscribe(["test"])
 
     def connect(self):
-        try:
-            self.conn.value = "Connecting"
-            self.conn.display()
-
-            self.sock = socket.create_connection(("localhost", 8888), 3)
-        except ConnectionRefusedError:
-            self.conn.value = "Timed Out"
-            self.conn.display()
-        else:
+        self.conn.value = "Connecting"
+        self.conn.display()
+        conn = mqtt.connect(recv_q, send_q)
+        if conn == 0:
             self.conn.value = "Connected"
             self.btn_conn.name = "Disconnect"
             self.btn_conn.whenPressed = self.disconnect
-            self.btn_conn.update(True)
-            self.display()
+        elif conn == 1:
+            self.conn.value = "Timed Out"
+
+        self.conn.display()
 
     def disconnect(self):
-        self.sock.close()
-        self.conn.value = "Disconnected"
-        self.btn_conn.name = "Connect"
-        self.btn_conn.whenPressed = self.connect
+        conn = mqtt.disconnect()
+        if not conn:
+            self.conn.value = "Disconnected"
+            self.btn_conn.name = "Connect"
+            self.btn_conn.whenPressed = self.connect
+        else:
+            # potential error case here?
+            pass
+
+        self.display()
+
+    def while_waiting(self):
+        try:
+            msg = recv_q.get_nowait()
+            # TODO: process received frame here
+            # self.update_log(frame)
+        except queue.Empty:
+            pass
+
+    def update_log(self, msg=None):
+        # max number of recent messages we want to see
+        self.max_size = 10
+        # if we're at max capacity, delete the oldest message from the log
+        if len(self.recv_log.values) >= self.max_size:
+            self.recv_log.values.pop()
+
+        self.recv_log.values = [json.loads(msg)["header"]] + self.recv_log.values
+        # refresh the display
 
         self.display()
 
     def create(self):
+        self.keypress_timeout = 1
+
         self.conn = self.add(
-            npyscreen.TitleText,
-            name="Connection",
-            editable=False,
-            relx = 2,
-            rely = 1
+            npyscreen.TitleText, name="Connection", editable=False, relx=2, rely=1
         )
         self.conn.value = "Disconnected"
 
@@ -93,59 +105,65 @@ class MainForm(npyscreen.Form):
             npyscreen.BoxTitle,
             name="Received Message Log",
             editable=False,
-            relx = 2,
-            rely = 3,
-            max_height = 10,
+            relx=2,
+            rely=3,
+            max_height=10,
         )
 
         self.topics_log = self.add(
             npyscreen.BoxTitle,
             name="Topics",
             editable=False,
-            relx = 2,
-            rely = 13,
-            max_height = 8,
-            max_width = int(self.recv_log.width/3)
+            relx=2,
+            rely=13,
+            max_height=8,
+            max_width=int(self.recv_log.width / 3),
         )
 
         self.sub_log = self.add(
             npyscreen.BoxTitle,
             name="Subscriptions",
             editable=False,
-            relx = self.topics_log.max_width+2,
-            rely = 13,
-            max_height = 8,
-            max_width = int(self.recv_log.width/3)
+            relx=self.topics_log.max_width + 2,
+            rely=13,
+            max_height=8,
+            max_width=int(self.recv_log.width / 3),
         )
-        
+
         self.btn_conn = self.add(
             npyscreen.ButtonPress,
             name="Connect",
-            relx = self.sub_log.relx + self.sub_log.max_width,
-            rely = 13
-        )
-        
-        btn_send = self.add(
-            npyscreen.ButtonPress,
-            name="Send Message",
-            relx = self.sub_log.relx + self.sub_log.max_width,
-            rely = 14
+            relx=self.sub_log.relx + self.sub_log.max_width,
+            rely=13,
         )
 
-        btn_sub = self.add(
+        self.btn_sub = self.add(
             npyscreen.ButtonPress,
             name="Subscribe",
-            relx = self.sub_log.relx + self.sub_log.max_width,
-            rely = 15
+            relx=self.btn_conn.relx,
+            rely=self.btn_conn.rely + 2,
         )
 
+        self.btn_unsub = self.add(
+            npyscreen.ButtonPress,
+            name="Unsubscribe",
+            relx=self.btn_conn.relx,
+            rely=self.btn_sub.rely + 1,
+        )
+
+        self.btn_send = self.add(
+            npyscreen.ButtonPress,
+            name="Send Message",
+            relx=self.btn_conn.relx,
+            rely=self.btn_unsub.rely + 2,
+        )
 
         self.btn_conn.whenPressed = self.connect
-        btn_send.whenPressed = self.send_msg
-        btn_sub.whenPressed = self.subscribe
-
+        self.btn_send.whenPressed = self.send_msg
+        self.btn_sub.whenPressed = self.subscribe
 
     def afterEditing(self):
+        mqtt.disconnect()
         self.parentApp.setNextForm(None)
 
 
