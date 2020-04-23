@@ -24,10 +24,7 @@ class MainForm(npyscreen.Form):
 
     def __init__(self, *args, **kwargs):
         super(MainForm, self).__init__(*args, **kwargs)
-        self.add_handlers({
-            "^C": self.disable_editing
-        })
-
+        self.add_handlers({"^C": self.disable_editing})
 
     def send_msg(self):
         if not self.topic.value in ["", " "]:
@@ -55,7 +52,6 @@ class MainForm(npyscreen.Form):
         self.conn.display()
         self.update_log()
 
-
     def disconnect(self):
         conn = mqtt.disconnect()
         if not conn:
@@ -71,6 +67,8 @@ class MainForm(npyscreen.Form):
 
     def while_waiting(self):
         self.update_log()
+        if not mqtt.connected:
+            self.disconnect()
 
     def update_log(self, msg=None):
         # max number of recent messages we want to see
