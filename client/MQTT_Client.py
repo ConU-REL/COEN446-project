@@ -84,8 +84,12 @@ class MQTT_Client:
             self.stop_thread = True
             self.tcp_thread.join()
             self.sock.close()
+
             self.connack_rec = False
             self.connected = False
+            self.topics = []
+            self.sub_req = 0
+            self.unsub_req = 0
         else:
             return False
 
@@ -135,7 +139,6 @@ class MQTT_Client:
                 frame = Message.Frame(msg)
 
                 hd = frame.header.lower()
-                logging.info(f"Message received: {hd}")
 
                 if hd == "error" or hd == "base":
                     pass
@@ -163,8 +166,9 @@ class MQTT_Client:
             self.sub_req = []
         elif tp == "unsub":
             if self.unsub_req:
-                for sub in range(0, len(self.unsub_req)):
-                    del self.topics[sub]
+                for sub in self.unsub_req:
+                    self.topics.remove(sub)
+                self.unsub_req = []
 
     def process_data(self, frame):
         if not frame.topic in self.topics:

@@ -14,10 +14,8 @@ class MQTT:
 
     send_q = None
 
-
     def __init__(self, send_q):
         self.send_q = send_q
-
 
     def process_msg(self, msg):
         """Process received message"""
@@ -55,7 +53,6 @@ class MQTT:
 
         self.broadcast_data(frame)
 
-
     def process_sub(self, sock, frame):
         """Process a Subscribe frame"""
         resp = []
@@ -65,9 +62,8 @@ class MQTT:
                 resp.append(1)
             else:
                 resp.append(0)
-        
-        self.send_q.put((sock, AckFrame().compose("suback", resp).encode()))
 
+        self.send_q.put((sock, AckFrame().compose("suback", resp).encode()))
 
     def process_unsub(self, sock, frame):
         """Process an Unsubscribe frame"""
@@ -87,12 +83,10 @@ class MQTT:
 
         self.update_pub_sub()
 
-
     def broadcast_data(self, frame):
         """Broadcast data to subscribers"""
         for sock in self.subscribers[frame.topic]:
             self.send_q.put((sock, frame.encode()))
-
 
     def add_topic(self, topic):
         """Handle adding a topic"""
@@ -101,18 +95,17 @@ class MQTT:
             self.publishers[topic] = []
             self.subscribers[topic] = []
 
-
     def rem_topic(self, topic):
         """Handle removing a topic"""
-        if (topic in self.topics and not \
-            self.publishers[topic] and not \
-            self.subscribers[topic]
-            ):
+        if (
+            topic in self.topics
+            and not self.publishers[topic]
+            and not self.subscribers[topic]
+        ):
 
             self.topics.remove(topic)
             del self.publishers[topic]
             del self.subscribers[topic]
-
 
     def add_sub(self, sock, topic):
         """Add subscriber to given topic"""
@@ -121,10 +114,11 @@ class MQTT:
             return 0
 
         self.subscribers[topic].append(sock)
-        self.sub_list.append(sock.getpeername())
+        fr_info = sock.getpeername()
+        self.sub_list.append(f"{fr_info[0]}, {fr_info[1]}, {topic}")
+
         return 1
         # logging.info("Subscribing")
-
 
     def rem_sub(self, sock, topic=None):
         """Remove subscriber from given topic"""
@@ -133,7 +127,6 @@ class MQTT:
                 if sock in self.subscribers[topic]:
                     self.subscribers[topic].remove(sock)
 
-
     def add_pub(self, sock, topic):
         """Add publisher to given topic"""
         if sock in self.publishers[topic]:
@@ -141,8 +134,8 @@ class MQTT:
             return
 
         self.publishers[topic].append(sock)
-        self.pub_list.append(sock.getpeername())
-
+        fr_info = sock.getpeername()
+        self.pub_list.append(f"{fr_info[0]}, {fr_info[1]}, {topic}")
 
     def rem_pub(self, sock, topic=None):
         """Remove publisher from given topic"""
@@ -155,16 +148,20 @@ class MQTT:
         pubs = []
         subs = []
         for topic in self.topics:
-            try:
-                pubs.append([x.getpeername() for x in self.publishers[topic]])
-                subs.append([x.getpeername() for x in self.subscribers[topic]])
-            except OSError:
-                pass
+            pubs += [self.update_helper(x, topic) for x in self.publishers[topic]]
+            subs += [self.update_helper(x, topic) for x in self.subscribers[topic]]
 
         for sock in self.pub_list:
             if not sock in pubs:
                 self.pub_list.remove(sock)
-        
+
         for sock in self.sub_list:
             if not sock in subs:
                 self.sub_list.remove(sock)
+
+    def update_helper(self, sock, topic):
+        try:
+            fr_info = sock.getpeername()
+            return f"{fr_info[0]}, {fr_info[1]}, {topic}"
+        except OSError:
+            pass

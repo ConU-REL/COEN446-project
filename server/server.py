@@ -96,8 +96,6 @@ class MainForm(npyscreen.Form):
         self.sub_log.values = mqtt_inst.sub_list
         self.pub_log.values = mqtt_inst.pub_list
 
-        logging.info(mqtt_inst.sub_list)
-
         self.display()
 
     def while_waiting(self):

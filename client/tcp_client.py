@@ -25,6 +25,7 @@ def client_thread(stop, sock, recv_q, send_q):
                 if msg:
                     # add data to appropriate queue
                     recv_q.put(msg)
+                    logging.info(f"message received: {msg}")
                     # logging.info("Message received. Contents: " + msg.decode("utf-8"))
                 # if we read 0 bytes, terminate the connection
                 else:
