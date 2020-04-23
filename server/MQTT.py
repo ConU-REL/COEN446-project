@@ -50,12 +50,8 @@ class MQTT:
     def process_data(self, sock, frame):
         """Process a publish frame"""
 
-        # check if the topic exists yet
-        if not frame.topic in self.topics:
-            # if not, create it and add the sender to the publisher list
-            self.add_topic(frame.topic)
-        if not sock in self.publishers[frame.topic]:
-            self.add_pub(sock, frame.topic)
+        self.add_topic(frame.topic)
+        self.add_pub(sock, frame.topic)
 
         self.broadcast_data(frame)
 
@@ -133,8 +129,9 @@ class MQTT:
     def rem_sub(self, sock, topic=None):
         """Remove subscriber from given topic"""
         if not topic is None:
-            if sock in self.subscribers[topic]:
-                self.subscribers[topic].remove(sock)
+            if topic in self.subscribers:
+                if sock in self.subscribers[topic]:
+                    self.subscribers[topic].remove(sock)
 
 
     def add_pub(self, sock, topic):
@@ -150,8 +147,9 @@ class MQTT:
     def rem_pub(self, sock, topic=None):
         """Remove publisher from given topic"""
         if not sock is None:
-            if sock in self.publishers[topic]:
-                self.publishers[topic].remove(sock)
+            if topic in self.publishers:
+                if sock in self.publishers[topic]:
+                    self.publishers[topic].remove(sock)
 
     def update_pub_sub(self):
         pubs = []
