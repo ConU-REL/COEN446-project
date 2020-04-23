@@ -1,4 +1,4 @@
 {
     "header":"UNSUB",
-    "topic":["topic1", "topic2"]
+    "topics":["topic1", "topic2"]
 }

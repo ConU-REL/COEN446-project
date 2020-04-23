@@ -45,6 +45,8 @@ class AckFrame(Frame):
             super(AckFrame, self).__init__(message)
             try:
                 self.content = self.message["content"]
+                if self.content.lower() == "sub":
+                    self.topics_return = self.message["return"]
             except json.JSONDecodeError:
                 pass
 
@@ -85,27 +87,38 @@ class AckFrame(Frame):
 class PublishFrame(Frame):
     """Contains data that has been sent to the broker or that is to be sent to subscribers"""
 
-    def __init__(self, message):
-        super(PublishFrame, self).__init__(message)
-        try:
-            self.topic = self.message["topic"]
-            self.qos = self.message["qos"]
-            self.retain = self.message["retain"]
-            self.content = self.message["content"]
-        except json.JSONDecodeError:
-            self.header = "error"
+    def __init__(self, message=None):
+        if not message is None:
+            super(PublishFrame, self).__init__(message)
+            try:
+                self.topic = self.message["topic"]
+                self.qos = self.message["qos"]
+                self.retain = self.message["retain"]
+                self.content = self.message["content"]
+            except json.JSONDecodeError:
+                self.header = "error"
 
     def __str__(self):
         return f"Publish Frame. Topic: {self.topic}, Payload: {self.content}"
 
-    def encode(self):
-        """Restructure the message for rebroadcasting"""
+    def compose(self, topic, content, qos=0, retain=0):
+        self.header = "PUB"
+        self.topic = topic
+        self.qos = qos
+        self.retain = retain
+        self.content = content
         self.message = {
             "header": self.header,
             "topic": self.topic,
+            "qos": self.qos,
+            "retain": self.retain,
             "content": self.content,
         }
 
+        return self
+
+    def encode(self):
+        """Restructure the message for rebroadcasting"""
         return json.dumps(self.message)
 
 
@@ -129,15 +142,23 @@ class SubscribeFrame(Frame):
 class UnsubscribeFrame(Frame):
     """Unsubscribe Frame sent to broker by client when it wants to unsubscribe"""
 
-    def __init__(self, message):
-        super(UnsubscribeFrame, self).__init__(message)
-        try:
-            self.topics = self.message["topic"]
-        except json.JSONDecodeError:
-            self.header = "error"
+    def __init__(self, message=None, topics=None):
+        if not message is None:
+            super(UnsubscribeFrame, self).__init__(message)
+            try:
+                self.topics = self.message["topics"]
+            except json.JSONDecodeError:
+                self.header = "error"
+        elif not topics is None:
+            self.header = "UNSUB"
+            self.topics = topics
+            self.message = {"header": self.header, "topics": self.topics}
 
     def __str__(self):
         return f"Unsubscribe Frame. Topics requested: {self.topics}"
+
+    def encode(self):
+        return json.dumps(self.message)
 
 
 class DisconnectFrame(Frame):
@@ -149,7 +170,7 @@ class DisconnectFrame(Frame):
         else:
             self.header = "DISCONNECT"
             self.content = ""
-            self.message = {"header":self.header, "content":self.content}
+            self.message = {"header": self.header, "content": self.content}
 
     def __str__(self):
         return f"DISCONNECT Frame"

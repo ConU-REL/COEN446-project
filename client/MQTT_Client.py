@@ -28,7 +28,15 @@ class MQTT_Client:
     connack_rec = False
 
     stop_thread = False
-    
+
+    topics = []
+
+    sub_req = []
+    unsub_req = []
+
+    recv_q = queue.Queue()
+    send_q = queue.Queue()
+
     def __init__(self, ip="localhost", port=8888, timeout=3):
         self.srv_ip = ip
         self.srv_port = port
@@ -37,9 +45,8 @@ class MQTT_Client:
         self.socket = None
         self.tcp_thread = None
 
-    def connect(self, recv_q, send_q):
-        self.recv_q = recv_q
-        self.send_q = send_q
+    def connect(self, out_q):
+        self.out_q = out_q
         try:
             self.sock = socket.create_connection(
                 (self.srv_ip, self.srv_port), self.srv_timeout
@@ -59,12 +66,9 @@ class MQTT_Client:
             args=(lambda: self.stop_thread, self.sock, self.recv_q, self.send_q,),
         )
 
-        self.process_thread = threading.Thread(
-            target=self.process_inc,
-            daemon=True,
-        )
+        self.process_thread = threading.Thread(target=self.process_inc, daemon=True,)
         if not self.tcp_thread.isAlive():
-            self.stop_thread=False
+            self.stop_thread = False
             self.tcp_thread.start()
         if not self.process_thread.isAlive():
             self.process_thread.start()
@@ -86,24 +90,42 @@ class MQTT_Client:
             return False
 
     def subscribe(self, topics=None):
-        # if not self.connack_rec:
-        #     return 1
+        if not self.connack_rec:
+            return 1
         if topics == None:
             return 1
-        msg = {"header":"SUB", "topics":topics}
+        for topic in topics:
+            if topic in self.topics:
+                topics.remove(topic)
+        if not topics:
+            return
+        self.sub_req = topics
+        msg = {"header": "SUB", "topics": topics}
         frame = Message.SubscribeFrame(json.dumps(msg))
 
         self.send_q.put(frame.encode())
 
-    def unsubscribe(self,):
+    def unsubscribe(self, topics=None):
         if not self.connack_rec:
             return 1
-        pass
+        if topics == None:
+            return 1
+        for topic in topics:
+            if not topic in self.topics:
+                topics.remove(topic)
+        if not topics:
+            return
+        self.unsub_req = topics
+        frame = Message.UnsubscribeFrame(topics=topics)
+        self.send_q.put(frame.encode())
 
-    def publish(self,):
+    def publish(self, topic, content):
         if not self.connack_rec:
             return 1
-        pass
+        
+        frame = Message.PublishFrame().compose(topic, content)
+
+        self.send_q.put(frame.encode())
 
     def process_inc(self):
         while True:
@@ -111,7 +133,7 @@ class MQTT_Client:
                 msg = self.recv_q.get_nowait()
                 msg = msg.decode("utf-8")
                 frame = Message.Frame(msg)
-                
+
                 hd = frame.header.lower()
                 logging.info(f"Message received: {hd}")
 
@@ -119,9 +141,8 @@ class MQTT_Client:
                     pass
                 elif hd == "ack":
                     self.process_ack(Message.AckFrame(msg))
-                elif hd == "data":
+                elif hd == "pub":
                     self.process_data(Message.PublishFrame(msg))
-
 
             except queue.Empty:
                 pass
@@ -135,9 +156,18 @@ class MQTT_Client:
         if tp == "":
             self.connack_rec = True
         elif tp == "sub":
-            pass
+            contents = frame.topics_return
+            for sub in range(0, len(contents)):
+                if contents[sub]:
+                    self.topics.append(self.sub_req[sub])
+            self.sub_req = []
         elif tp == "unsub":
-            pass
+            if self.unsub_req:
+                for sub in range(0, len(self.unsub_req)):
+                    del self.topics[sub]
 
     def process_data(self, frame):
-        pass
+        if not frame.topic in self.topics:
+            return
+        
+        self.out_q.put([frame.topic, frame.content])

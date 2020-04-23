@@ -77,6 +77,8 @@ class MQTT:
         """Process an Unsubscribe frame"""
         for topic in frame.topics:
             self.rem_sub(sock, topic)
+            self.rem_topic(topic)
+            self.update_pub_sub()
 
         self.send_q.put((sock, AckFrame().compose("unsuback").encode()))
 
@@ -155,8 +157,11 @@ class MQTT:
         pubs = []
         subs = []
         for topic in self.topics:
-            pubs.append([x.getpeername() for x in self.publishers[topic]])
-            subs.append([x.getpeername() for x in self.subscribers[topic]])
+            try:
+                pubs.append([x.getpeername() for x in self.publishers[topic]])
+                subs.append([x.getpeername() for x in self.subscribers[topic]])
+            except OSError:
+                pass
 
         for sock in self.pub_list:
             if not sock in pubs:
