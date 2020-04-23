@@ -133,6 +133,10 @@ class MQTT_Client:
 
     def process_inc(self):
         while True:
+            if self.connected:
+                if self.sock._closed:
+                    self.connack_rec = 0
+                    self.disconnect()
             try:
                 msg = self.recv_q.get_nowait()
                 msg = msg.decode("utf-8")

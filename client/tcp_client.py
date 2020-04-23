@@ -33,7 +33,7 @@ def client_thread(stop, sock, recv_q, send_q):
                     sock.close()
                     return 1
             except ConnectionResetError:
-                pass
+                sock.close()
 
         # try to send any/all messages in the queue
         while True:
@@ -45,7 +45,10 @@ def client_thread(stop, sock, recv_q, send_q):
                 message = send_q.get_nowait()
                 # if there is a message and that socket is still writeable, send it
                 message = message.encode("utf-8")
-                sock.sendall(message)
+                try:
+                    sock.sendall(message)
+                except ConnectionResetError:
+                    sock.close()
                 logging.info(f"Message being sent: {message}.")
 
             except queue.Empty:
