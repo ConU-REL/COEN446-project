@@ -1,5 +1,5 @@
 import npyscreen, queue
-import json
+import json, time
 from MQTT_Client import MQTT_Client
 
 # for debugging
@@ -40,13 +40,22 @@ class ManagementForm(npyscreen.Form):
             self.disconnect()
 
 
-    def submit(self):
+    def submit(self, p_name=None, p_temp=None):
         """Send the message to the broker"""
         if mqtt.connected:
-            if not (self.user.value in ["", " "]):
+            name = None
+            temp = None
+            if not p_name is None and not p_temp is None:
+                name = p_name
+                temp = p_temp
+            elif p_name is None and p_temp is None:
+                name = self.user.value
+                temp = self.temp.value
+
+            if not (name in ["", " "]):
                 try:
-                    temp = int(self.temp.value)
-                    msg = {"name": self.user.value, "temp": temp}
+                    temp = int(temp)
+                    msg = {"name": name, "temp": temp}
                     mqtt.publish(topic, json.dumps(msg))
                 except ValueError:
                     npyscreen.notify_confirm(
@@ -59,6 +68,33 @@ class ManagementForm(npyscreen.Form):
                 "Please connect to broker before submitting",
                 title="Can't Submit, Not Connected",
             )
+
+    def load(self):
+        file = npyscreen.selectFile(must_exist=True, confirm_if_exists=False)
+
+        with open(file, "r") as file:
+            try:
+                self.test = json.load(file)["test"]
+                self.btn_start.hidden = False
+                self.display()
+
+            except (json.JSONDecodeError, KeyError):
+                npyscreen.notify_confirm(
+                    "Error in JSON file, please fix and retry.", title="JSON Error"
+                )
+                return
+
+    def start_test(self):
+        if mqtt.connected:
+            for cmd in self.test:
+                self.submit(cmd[0].lower(), cmd[1])
+                time.sleep(0.15)
+        else:
+            npyscreen.notify_confirm(
+                "Please connect to broker before starting test",
+                title="Can't Start Test, Not Connected",
+            )
+            return
 
     def disable_editing(self, *args, **keywords):
         """Helper to disable editing (quit)"""
@@ -158,6 +194,9 @@ class ManagementForm(npyscreen.Form):
         )
 
         self.btn_load = self.add(npyscreen.ButtonPress, name="Load Test")
+        self.nextrely -= 1
+        self.nextrelx += 15
+        self.btn_start = self.add(npyscreen.ButtonPress, name="Start Test", hidden=True)
 
         self.status = self.add(
             npyscreen.TitleText, name="Status:", value="Idle", editable=False, rely = -3
@@ -165,6 +204,9 @@ class ManagementForm(npyscreen.Form):
 
         self.btn_conn.whenPressed = self.connect
         self.btn_send.whenPressed = self.submit
+
+        self.btn_load.whenPressed = self.load
+        self.btn_start.whenPressed = self.start_test
 
         self.display()
 

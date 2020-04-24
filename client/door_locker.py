@@ -72,7 +72,7 @@ class DoorLockerForm(npyscreen.Form):
     def load(self):
         file = npyscreen.selectFile(must_exist=True, confirm_if_exists=False)
 
-        with open("test.json", "r") as file:
+        with open(file, "r") as file:
             try:
                 self.test = json.load(file)["test"]
                 self.btn_start.hidden = False
