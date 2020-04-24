@@ -27,7 +27,7 @@ class ClientApp(npyscreen.NPSAppManaged):
 
 
 class ManagementForm(npyscreen.Form):
-    OK_BUTTON_TEXT = "Exit"
+    OK_BUTTON_TEXT = "Exit (Ctrl + C)"
 
     def __init__(self, *args, **kwargs):
         super(ManagementForm, self).__init__(*args, **kwargs)
@@ -67,17 +67,17 @@ class ManagementForm(npyscreen.Form):
     def connect(self):
         """Connect to the MQTT broker"""
         self.status.value = "Connecting"
-        self.status.display()
+        self.display()
         conn = mqtt.connect(msgs)
         if conn == 0:
             self.status.value = "Connection Successful"
             self.btn_conn.name = "Disconnect"
             self.btn_conn.whenPressed = self.disconnect
-            self.status.display()
+            self.display()
             return 0
         elif conn == 1:
             self.status.value = "Connection Failed. Check Broker Status"
-            self.status.display()
+            self.display()
             return 1
 
     def disconnect(self):
@@ -87,7 +87,7 @@ class ManagementForm(npyscreen.Form):
             self.btn_conn.name = "Connect"
             self.btn_conn.whenPressed = self.connect
             self.status.value = "Disconnected"
-            self.status.display()
+            self.display()
 
     def afterEditing(self):
         """Called when exiting"""
@@ -159,8 +159,9 @@ class ManagementForm(npyscreen.Form):
 
         self.btn_load = self.add(npyscreen.ButtonPress, name="Load Test")
 
-        self.nextrely += 5
-        self.status = self.add(npyscreen.TitleText, name="Status: ", editable=False)
+        self.status = self.add(
+            npyscreen.TitleText, name="Status:", value="Idle", editable=False, rely = -3
+        )
 
         self.btn_conn.whenPressed = self.connect
         self.btn_send.whenPressed = self.submit
