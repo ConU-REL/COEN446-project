@@ -1,5 +1,5 @@
 import npyscreen, queue
-import json
+import json, time
 from MQTT_Client import MQTT_Client
 
 # for debugging
@@ -46,12 +46,16 @@ class DoorLockerForm(npyscreen.Form):
     def leaves(self):
         self.submit(1)
 
-    def submit(self, instr):
+    def submit(self, instr, name=None):
         """Send the message to the broker"""
         if mqtt.connected:
+            if not name is None:
+                user = name
+            else:
+                user = self.user.value
             msg = {}
-            if not (self.user.value in ["", " "]):
-                msg["name"] = self.user.value
+            if not (user in ["", " "]):
+                msg["name"] = user
                 if not instr:
                     msg["instr"] = "arrives"
                 else:
@@ -64,6 +68,50 @@ class DoorLockerForm(npyscreen.Form):
                 "Please connect to broker before submitting",
                 title="Can't Submit, Not Connected",
             )
+
+    def load(self):
+        file = npyscreen.selectFile(must_exist=True, confirm_if_exists=False)
+
+        with open("test.json", "r") as file:
+            try:
+                self.test = json.load(file)["test"]
+                self.btn_start.hidden = False
+                self.display()
+
+            except (json.JSONDecodeError, KeyError):
+                npyscreen.notify_confirm(
+                    "Error in JSON file, please fix and retry.", title="JSON Error"
+                )
+                return
+
+    def start_test(self):
+        if mqtt.connected:
+            for cmd in self.test:
+                if cmd[0] == "delay":
+                    try:
+                        delay = int(cmd[1])
+                    except ValueError:
+                        npyscreen.notify_confirm(
+                            "Error in JSON file, please fix and retry.",
+                            title="JSON Error",
+                        )
+                        return
+                    if delay <= 10 and delay >= 1:
+                        time.sleep(delay)
+                else:
+                    instr = None
+                    if cmd[0].lower() == "arrives":
+                        instr = False
+                    elif cmd[0].lower() == "leaves":
+                        instr = True
+
+                    self.submit(instr, cmd[1])
+        else:
+            npyscreen.notify_confirm(
+                "Please connect to broker before starting test",
+                title="Can't Start Test, Not Connected",
+            )
+            return
 
     def disable_editing(self, *args, **keywords):
         """Helper to disable editing (quit)"""
@@ -147,19 +195,25 @@ class DoorLockerForm(npyscreen.Form):
         self.nextrely += 1
         self.add(
             npyscreen.TitleText,
-            name="If you prefer, you can also load a test file and send it "\
-                "using the button below.",
+            name="If you prefer, you can also load a test file and send it "
+            "using the button below.",
             editable=False,
         )
 
         self.btn_load = self.add(npyscreen.ButtonPress, name="Load Test")
-        
+        self.nextrely -= 1
+        self.nextrelx += 15
+        self.btn_start = self.add(npyscreen.ButtonPress, name="Start Test", hidden=True)
+
         self.status = self.add(
-            npyscreen.TitleText, name="Status:", value="Idle", editable=False, rely = -3
+            npyscreen.TitleText, name="Status:", value="Idle", editable=False, rely=-3
         )
         self.btn_conn.whenPressed = self.connect
         self.btn_arrive.whenPressed = self.arrives
         self.btn_leave.whenPressed = self.leaves
+
+        self.btn_load.whenPressed = self.load
+        self.btn_start.whenPressed = self.start_test
 
         self.display()
 

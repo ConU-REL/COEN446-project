@@ -123,6 +123,10 @@ class ThermostatForm(npyscreen.Form):
                 elif action == "leaves":
                     if name in home_occupancy:
                         home_occupancy.remove(name)
+                    else:
+                        self.temp_changes.values = [
+                            f"An unknown user has left. Temperature setting has not been changed."
+                        ] + self.temp_changes.values
                 self.events.values = home_occupancy
                 self.events.display()
 
