@@ -5,15 +5,16 @@ import logging
 class Frame:
     """Frame superclass used to define all message frames"""
 
+    # header
     header = "base"
 
     def __init__(self, message):
         try:
+            # try to pull data from message
             self.message = dict(json.loads(message))
-            # logging.info(f"Message dumped: {self.message}")
             self.header = self.message["header"]
         except json.JSONDecodeError:
-            # logging.info(f"JSON error")
+            # if we can't, error out
             self.header = "error"
 
     def __str__(self):
@@ -51,6 +52,7 @@ class AckFrame(Frame):
                 pass
 
     def compose(self, type, topics=None):
+        """Compose an ACK frame"""
         if type == "connack":
             self.ack_type = "connack"
             self.header = "ACK"
@@ -102,6 +104,7 @@ class PublishFrame(Frame):
         return f"Publish Frame. Topic: {self.topic}, Payload: {self.content}"
 
     def compose(self, topic, content, qos=0, retain=0):
+        """Compose a Publish Frame"""
         self.header = "PUB"
         self.topic = topic
         self.qos = qos

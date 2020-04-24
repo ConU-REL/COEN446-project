@@ -2,6 +2,9 @@
 
 ## Smart HVAC System
 
+### Installation Steps
+The steps for installing this project are listed in the project report.
+
 ### Project Breakdown
 This project involves the design and implementation of a simple MQTT system which automatically controls the temperature within a home or room based upon the preferences of the users that occupy that home or room.
 

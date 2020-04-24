@@ -27,7 +27,7 @@ temp_min = 10
 temp_max = 25
 
 # set the logging level
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # create the UI instance
 class ClientApp(npyscreen.NPSAppManaged):
@@ -44,38 +44,50 @@ class ThermostatForm(npyscreen.Form):
         self.add_handlers({"^C": self.disable_editing})
 
     def proc_start(self):
+        """Start the thermostat process"""
+        # connect to the MQTT broker
         if not self.connect():
-
             time.sleep(0.5)
             if not mqtt.is_connected():
                 npyscreen.notify_confirm(
                     "Something wrong with MQTT broker", title="Unknown MQTT error"
                 )
                 return
+            # subscribe to the required topics
             mqtt.subscribe(topic_user)
             time.sleep(0.5)
             mqtt.subscribe(topic_event)
 
     def proc_stop(self):
+        """Stop the thoermostat process"""
         self.disconnect()
 
     def while_waiting(self):
         """While the user isn't actively moving around the form, update stuff"""
         if not mqtt.connected:
+            # if the broker disconnects for some reason
             self.disconnect()
             self.display()
         else:
+            # update the display
             self.update_log()
+
+            # figure out what temperature to set the house to
             global prefs_set_by
             global home_occupancy
+            # check if anybody is home
             if home_occupancy:
+                # if the current temperature was not set by the user with the highest priority
                 if prefs_set_by != home_occupancy[0]:
+                    # update temp and user that set it
                     prefs_set_by = home_occupancy[0]
                     temp = known_users[home_occupancy[0]]
+                    # update display
                     self.temp_changes.values = [
                         (f"Temp set to {temp} because {prefs_set_by} has priority.")
                     ] + self.temp_changes.values
             elif not home_occupancy and prefs_set_by != None:
+                # if nobody is home set temp to 15
                 prefs_set_by = None
                 temp = 15
                 self.temp_changes.values = [
@@ -87,11 +99,12 @@ class ThermostatForm(npyscreen.Form):
     def update_log(self):
         """Update UI elements with new info"""
         try:
+            # see if any messages have arrived
             topic, content = msgs.get_nowait()
-            logging.info(content)
-
+            # if we received a new user
             if topic == topic_user:
                 try:
+                    # extract data from message
                     content = dict(json.loads(content))
                     name = content["name"].lower()
                     temp = content["temp"]
@@ -100,37 +113,51 @@ class ThermostatForm(npyscreen.Form):
                 except (json.JSONDecodeError, KeyError):
                     pass
 
+                # add the user and their preferred temp to the db
                 known_users[name] = temp
+                # update the list of users
                 self.users.values = []
                 for person in known_users:
                     self.users.values.append(f"{person}, {known_users[person]} deg")
                 self.users.display()
+            # if we received a new door event
             elif topic == topic_event:
                 try:
+                    # extract data from message
                     content = dict(json.loads(content))
                     name = content["name"].lower()
                     action = content["instr"]
                 except (json.JSONDecodeError, KeyError):
                     pass
 
+                # if a user arrived
                 if action == "arrives":
+                    # if user is known
                     if not name in home_occupancy and name in known_users:
+                        # add to list
                         home_occupancy.append(name)
+                    # if user is not known
                     elif not name in home_occupancy:
                         self.temp_changes.values = [
                             f"A user has arrived but their temperature preference is unknown."
                         ] + self.temp_changes.values
+                # if a user left
                 elif action == "leaves":
+                    # remove user if they are known
                     if name in home_occupancy:
                         home_occupancy.remove(name)
+                    # if not known
                     else:
+                        # print unknown
                         self.temp_changes.values = [
                             f"An unknown user has left. Temperature setting has not been changed."
                         ] + self.temp_changes.values
+                # update UI
                 self.events.values = home_occupancy
                 self.events.display()
 
         except queue.Empty:
+            # if no new messages, don't do anything
             pass
 
     def disable_editing(self, *args, **keywords):
@@ -142,12 +169,15 @@ class ThermostatForm(npyscreen.Form):
         self.status.value = "Connecting"
         self.status.display()
         conn = mqtt.connect(msgs)
+        # update UI and button actions
+        # if connection succesful
         if conn == 0:
             self.btn_start_stop.whenPressed = self.proc_stop
             self.btn_start_stop.name = "Stop Thermostat Process"
             self.status.value = "Connection Successful"
             self.display()
             return 0
+        # if connection failed
         elif conn == 1:
             self.status.value = "Connection Failed"
             self.status.display()
@@ -159,8 +189,10 @@ class ThermostatForm(npyscreen.Form):
 
     def disconnect(self):
         """Disconnect from the MQTT broker"""
+        # disconnect
         conn = mqtt.disconnect()
         if not conn:
+            # update UI and button actions
             self.status.value = "Idle"
             self.btn_start_stop.whenPressed = self.proc_start
             self.btn_start_stop.name = "Start Thermostat Process"
@@ -173,6 +205,7 @@ class ThermostatForm(npyscreen.Form):
 
     def afterEditing(self):
         """Called when exiting"""
+        # disconnect before exiting
         mqtt.disconnect()
         self.parentApp.setNextForm(None)
 
@@ -180,6 +213,7 @@ class ThermostatForm(npyscreen.Form):
         """Create the UI elements"""
         self.keypress_timeout = 1
 
+        # title
         self.add(
             npyscreen.TitleText,
             name="Temperature Management Console",
@@ -192,6 +226,7 @@ class ThermostatForm(npyscreen.Form):
             npyscreen.ButtonPress, name="Start Thermostat Process", relx=2, rely=2,
         )
 
+        # add temp change log
         self.temp_changes = self.add(
             npyscreen.BoxTitle,
             name="Temperature Changes",
@@ -201,6 +236,7 @@ class ThermostatForm(npyscreen.Form):
             max_height=8,
         )
 
+        # add user list
         self.users = self.add(
             npyscreen.BoxTitle,
             name="Known Users",
@@ -211,6 +247,7 @@ class ThermostatForm(npyscreen.Form):
             max_width=int(self.temp_changes.width / 2),
         )
 
+        # add event list
         self.events = self.add(
             npyscreen.BoxTitle,
             name="Door Events",
@@ -220,14 +257,32 @@ class ThermostatForm(npyscreen.Form):
             max_height=8,
             max_width=self.users.max_width,
         )
-        self.add(npyscreen.TitleText, name="Min Temp:", value=temp_min, editable=False, rely=-6)
-        self.add(npyscreen.TitleText, name="Max Temp:", value=temp_max, editable=False, rely=-5)
 
+        # add min and max temp
+        self.add(
+            npyscreen.TitleText,
+            name="Min Temp:",
+            value=temp_min,
+            editable=False,
+            rely=-6,
+        )
+        self.add(
+            npyscreen.TitleText,
+            name="Max Temp:",
+            value=temp_max,
+            editable=False,
+            rely=-5,
+        )
+
+        # add status
         self.status = self.add(
             npyscreen.TitleText, name="Status:", value="Idle", editable=False, rely=-3
         )
 
+        # assign button action
         self.btn_start_stop.whenPressed = self.proc_start
+
+        # set starting temp to 15
         self.temp_changes.values = [f"Startup. Temperature set to 15 deg"]
 
 

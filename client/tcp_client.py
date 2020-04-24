@@ -25,8 +25,6 @@ def client_thread(stop, sock, recv_q, send_q):
                 if msg:
                     # add data to appropriate queue
                     recv_q.put(msg)
-                    logging.info(f"message received: {msg}")
-                    # logging.info("Message received. Contents: " + msg.decode("utf-8"))
                 # if we read 0 bytes, terminate the connection
                 else:
                     # close the socket
@@ -37,6 +35,7 @@ def client_thread(stop, sock, recv_q, send_q):
 
         # try to send any/all messages in the queue
         while True:
+            # no sockets are ready to accept, break
             if not socks_write:
                 break
             sock = socks_write[0]
@@ -48,8 +47,8 @@ def client_thread(stop, sock, recv_q, send_q):
                 try:
                     sock.sendall(message)
                 except ConnectionResetError:
+                    # close socket if connection dropped
                     sock.close()
-                logging.info(f"Message being sent: {message}.")
 
             except queue.Empty:
                 # if queue is empty, break
