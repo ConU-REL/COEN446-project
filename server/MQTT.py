@@ -79,6 +79,10 @@ class MQTT:
         for topic in self.topics:
             self.rem_pub(sock, topic)
             self.rem_sub(sock, topic)
+
+        topics_bk = self.topics.copy()
+
+        for topic in topics_bk:
             self.rem_topic(topic)
 
         self.update_pub_sub()
@@ -102,7 +106,6 @@ class MQTT:
             and not self.publishers[topic]
             and not self.subscribers[topic]
         ):
-
             self.topics.remove(topic)
             del self.publishers[topic]
             del self.subscribers[topic]
@@ -151,11 +154,13 @@ class MQTT:
             pubs += [self.update_helper(x, topic) for x in self.publishers[topic]]
             subs += [self.update_helper(x, topic) for x in self.subscribers[topic]]
 
-        for sock in self.pub_list:
+        pub_list = self.pub_list.copy()
+        for sock in pub_list:
             if not sock in pubs:
                 self.pub_list.remove(sock)
 
-        for sock in self.sub_list:
+        sub_list = self.sub_list.copy()
+        for sock in sub_list:
             if not sock in subs:
                 self.sub_list.remove(sock)
 

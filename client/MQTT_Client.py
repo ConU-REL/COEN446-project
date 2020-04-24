@@ -45,6 +45,11 @@ class MQTT_Client:
         self.socket = None
         self.tcp_thread = None
 
+    def is_connected(self):
+        if self.connected and self.connack_rec:
+            return 1
+        return 0
+
     def connect(self, out_q):
         self.out_q = out_q
         try:
@@ -98,11 +103,14 @@ class MQTT_Client:
             return 1
         if topics == None:
             return 1
-        for topic in topics:
-            if topic in self.topics:
-                topics.remove(topic)
-        if not topics:
-            return
+        if isinstance(topics, list):
+            for topic in topics:
+                if topic in self.topics:
+                    topics.remove(topic)
+        elif isinstance(topics, str):
+            if topics in self.topics:
+                return
+            topics = [topics]
         self.sub_req = topics
         msg = {"header": "SUB", "topics": topics}
         frame = Message.SubscribeFrame(json.dumps(msg))
@@ -126,7 +134,7 @@ class MQTT_Client:
     def publish(self, topic, content):
         if not self.connack_rec:
             return 1
-        
+
         frame = Message.PublishFrame().compose(topic, content)
 
         self.send_q.put(frame.encode())
@@ -177,5 +185,5 @@ class MQTT_Client:
     def process_data(self, frame):
         if not frame.topic in self.topics:
             return
-        
+
         self.out_q.put([frame.topic, frame.content])

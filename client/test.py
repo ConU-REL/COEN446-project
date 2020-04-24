@@ -1,11 +1,7 @@
 # Imports
-import socket, sys
-import queue, threading
+import queue
 import npyscreen
-import json
 import logging
-from tcp_client import client_thread
-from Message import *
 from MQTT_Client import MQTT_Client
 
 out_q = queue.Queue()
@@ -69,16 +65,15 @@ class MainForm(npyscreen.Form):
         self.update_log()
         if not mqtt.connected:
             self.disconnect()
+            self.display()
 
-    def update_log(self, msg=None):
+    def update_log(self):
         # max number of recent messages we want to see
         self.max_size = 10
         # if we're at max capacity, delete the oldest message from the log
         if len(self.recv_log.values) >= self.max_size:
             self.recv_log.values.pop()
 
-        if not msg is None:
-            self.recv_log.values = [json.loads(msg)["header"]] + self.recv_log.values
         self.sub_log.values = mqtt.topics
         try:
             self.recv_log.values.append(" ".join(out_q.get_nowait()))

@@ -79,10 +79,6 @@ class MainForm(npyscreen.Form):
 
         self.display()
 
-        # btn_ = npyscreen.ButtonPress
-        # btn_send.whenPressed = self.send_msg
-        # self.add(btn_send, name="Send Message")
-
     def update_log(self, msg=None):
         # max number of recent messages we want to see
         self.max_size = 10
